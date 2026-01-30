@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Group map parser</title>
+</head>
+<body>
+	<h1>Group map parser</h1>
+	
+	<blockquote>
+		<p style="background-color:#e0e0e0;">
+			Find the presence of one or more data groups via bit map settings.<br>
+			Two most significant bits hard-coded to 01.<br>
+			ASCII @@@@ denotes no groups present.
+		</p>
+	</blockquote>
+	<!--<footer>ref: <cite>spec</cite></footer>-->
+	<hr><br>
+
+	<form id="frmGroupMap">
+		<label for="txtGroupMap">Enter group map:</label><br>
+		<input type="text" id="txtGroupMap" name="txtGroupMap" maxlength="4"><br><br>
+		
+		<label>Group map for:</label><br>
+		<input type="radio" id="radRecordType" name="radGroup" value="0" checked>
+		<label for="radRecordType">Primary <span style="color:gray;">for bits 1 - 24</span></label><br>
+		<input type="radio" id="radGroupMapExt" name="radGroup" value="1">
+		<label for="radGroupMapExt">Secondary (via bit 23) <span style="color:gray;">for bits 25 - 48</span></label><br><br>
+		
+		<button type="button" id="btnExtract" onclick="extractGroups()" style="width:100px;">Extract</button>
+	</form>
+	
+	<h2>Output</h2>
+	<textarea id="txtOutput" rows="20" cols="50" readonly></textarea>
+	
+	<script>
+		function extractGroups()
+		{
+			const groupMap = document.getElementById('txtGroupMap').value;
+			if (groupMap.length != 4)
+				return;
+			
+			const radOptions = document.getElementsByName('radGroup');
+			
+			let output = document.getElementById('txtOutput');
+			output.value = "";
+			
+			let radValue = '';
+			for (let rad of radOptions)
+			{
+				if (rad.checked)
+				{
+					radValue = rad.value;
+					break;
+				}
+			}
+			
+			const textEncoder = new TextEncoder();
+			const arGroupMap = textEncoder.encode(groupMap);
+			
+			//console.log(arGroupMap);
+			//output.value = arGroupMap + "\n";
+			output.value = "Group Map:\n\n";
+			output.value += "	Chr	|	Dec	|	Bin";
+			output.value += "\n	---	|	---	|	---";
+			
+			let lastSix = 0;
+            for (let i = 0; i < arGroupMap.length; i++)
+            {
+				lastSix = (arGroupMap[i] & 63);
+				output.value += "\nByte " + (i + 1) + ":	" + String.fromCharCode(arGroupMap[i]) + "	|	" + arGroupMap[i] + "	|	01" + lastSix.toString(2).padStart(6, '0');
+            }
+			
+			output.value += "\n\nData Groups:\n";
+			
+			const startGroups = [ /* 0 = */ [ 1, 7, 13, 19 ], /* 1 = */ [ 25, 31, 37, 43 ] ];
+			
+			let currentByte = 0;
+			let group = 0; // default group
+            for (let i = 0; i < arGroupMap.length; i++)
+            {
+                currentByte = arGroupMap[arGroupMap.length - 1 - i];
+                lastSix = (currentByte & 63);
+                group = startGroups[radValue][i];
+                for (let j = 0; j <= 5; j++)
+                {
+                    if ((lastSix & (1 << j)) != 0)
+                    {
+                        output.value += "\nGroup " + group;
+                    }
+                    group++;
+                }
+            }
+		}
+	</script>
+</body>
+</html>
